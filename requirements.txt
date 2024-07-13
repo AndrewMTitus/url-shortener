@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pydantic
+boto3
+pynamodb
+botocore
+pytest
+requests
