@@ -16,6 +16,7 @@ class URLRequest(BaseModel):
 def shorten_url(request: URLRequest):
     try:
         short_url = generate_short_url(request.url, request.custom_alias)
+        return {"short_url": short_url}
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
