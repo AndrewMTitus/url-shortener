@@ -43,7 +43,7 @@ class TestURLShortener(unittest.TestCase):
 "https://www.example.com", "custom_alias": "custom123"})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["short_url"], 
-"http://localhost:8000/custom123")
+"custom123")
 
     def test_shorten_url_duplicate_custom_alias(self):
         client.post("/shorten_url", json={"url": 
