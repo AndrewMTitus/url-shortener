@@ -47,4 +47,7 @@ jobs:
           docker stop url-shortener || true
           docker rm url-shortener || true
           docker run -d -p 80:8000 --name url-shortener ${{ secrets.DOCKER_USERNAME }}/url-shortener:latest
+<<<<<<< HEAD
 
+=======
+>>>>>>> 182089f8476e3fa16994b0d420b2e1ac6d0f1daf
