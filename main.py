@@ -1,28 +1,25 @@
 from fastapi import FastAPI, HTTPException
 from models import URLRequest
 from shorten_url import (
- generate_short_url, get_original_url, 
-list_all_urls,
+     generate_short_url,
+     get_original_url, 
+     list_all_urls
 )
-from exceptions import URLAlreadyExistsException, URLNotFoundException 
-
+from exceptions import URLAlreadyExistsException, URLNotFoundException
 
 app = FastAPI()
-
-class URLRequest(BaseModel):
-    url: str
-    custom_alias: str = None
 
 @app.post("/shorten_url")
 def shorten_url(request: URLRequest):
     try:
         short_url = generate_short_url(request.url, request.custom_alias)
         return {"short_url": short_url}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except URLAlreadyExistsException as e:
         raise HTTPException(status_code=409, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal Server 
-Error")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @app.get("/list_urls")
 def list_urls():
@@ -40,8 +37,10 @@ def redirect_url(short_url: str):
     except URLNotFoundException as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal 
-Server Error")
+        raise HTTPException(status_code=500, detail=(
+           "Internal Server Error"
+        ))
+
 
     
 
