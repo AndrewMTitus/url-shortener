@@ -47,3 +47,4 @@ jobs:
           sudo docker stop url-shortener || true
           sudo docker rm url-shortener || true
           sudo docker run -d -p 80:8000 --name url-shortener ${{ secrets.DOCKER_USERNAME }}/url-shortener:latest
+        debug: true
