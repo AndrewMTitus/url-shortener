@@ -1,49 +1,44 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from models import URLRequest
-from shorten_url import (
- generate_short_url, get_original_url, 
-list_all_urls,
+from fastapi import FastAPI, Depends
+from .auth import JWTBearer
+from .url_management import (
+    create_user,
+    list_urls,
+    list_my_urls,
+    change_password,
+    create_url,
+    update_url_limit,
+    CreateUserRequest,
+    ChangePasswordRequest,
+    URLRequest,
+    UpdateURLLimitRequest,
 )
-from exceptions import URLAlreadyExistsException, URLNotFoundException 
 import uvicorn
 
 app = FastAPI()
 
-class URLRequest(BaseModel):
-    url: str
-    custom_alias: str = None
+@app.post("/create_user", dependencies=[Depends(JWTBearer())])
+def create_user_endpoint(request: CreateUserRequest):
+    return create_user(request)
 
-@app.post("/shorten_url")
-def shorten_url(request: URLRequest):
-    try:
-        short_url = generate_short_url(request.url, request.custom_alias)
-        return {"short_url": short_url}
-    except URLAlreadyExistsException as e:
-        raise HTTPException(status_code=409, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+@app.get("/list_urls", dependencies=[Depends(JWTBearer())])
+def list_urls_endpoint():
+    return list_urls()
 
-@app.get("/list_urls")
-def list_urls():
-    try:
-        urls = list_all_urls()
-        return urls
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@app.get("/list_my_urls", dependencies=[Depends(JWTBearer())])
+def list_my_urls_endpoint():
+    return list_my_urls()
 
-@app.get("/{short_url}")
-def redirect_url(short_url: str):
-    try:
-        original_url = get_original_url(short_url)
-        return {"original_url": original_url}
-    except URLNotFoundException as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+@app.post("/change_password", dependencies=[Depends(JWTBearer())])
+def change_password_endpoint(request: ChangePasswordRequest):
+    return change_password(request)
+
+@app.post("/create_url", dependencies=[Depends(JWTBearer())])
+def create_url_endpoint(request: URLRequest):
+    return create_url(request)
+
+@app.post("/update_url_limit", dependencies=[Depends(JWTBearer())])
+def update_url_limit_endpoint(request: UpdateURLLimitRequest):
+    return update_url_limit(request)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)    
-
-
-
+    uvicorn.run(app, host="0.0.0.0", port=8000)

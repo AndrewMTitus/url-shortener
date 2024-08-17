@@ -6,3 +6,4 @@ pynamodb
 botocore
 pytest
 requests
+python-jose
