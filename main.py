@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends
-from .auth import JWTBearer
-from .url_management import (
+from auth import JWTBearer
+from url_management import (
     create_user,
     list_urls,
     list_my_urls,
