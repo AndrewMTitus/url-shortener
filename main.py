@@ -1,8 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, status
-from sqlalchemy.orm import Session
 from auth import create_access_token, JWTBearer, get_current_user, get_current_active_user
-from models import User, URL
-from database import SessionLocal
+from models import User, UserCreate
 from url_management import (
     create_url, list_my_urls, list_all_urls, update_url_limit
 )
@@ -16,59 +14,40 @@ class URLRequest(BaseModel):
     custom_alias: str = None
 
 @app.post("/create_user")
-def create_user(username: str, password: str, db: Session = Depends(SessionLocal)):
-    hashed_password = get_password_hash(password)
-    user = User(username=username, hashed_password=hashed_password)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return {"message": f"User '{username}' created successfully."}
+def create_user(user: UserCreate):
+    return create_user_in_db(user)
 
-@app.post("/shorten_url", dependencies=[Depends(get_current_active_user)])
-def shorten_url(request: URLRequest, db: Session = Depends(SessionLocal), current_user: User = Depends(get_current_user)):
-    try:
-        short_url = create_url(db, request.url, request.custom_alias, current_user)
-        return {"short_url": short_url.short_url}
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+@app.post("/token", response_model=Token)
+def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token = create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
 
-@app.get("/list_my_urls", dependencies=[Depends(get_current_active_user)])
-def list_my_urls(db: Session = Depends(SessionLocal), current_user: User = Depends(get_current_user)):
-    try:
-        urls = list_my_urls(db, current_user)
-        return urls
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@app.get("/list_urls", dependencies=[Depends(JWTBearer())])
+def list_all_urls_for_admin():
+    return list_urls()
 
-@app.get("/list_urls", dependencies=[Depends(get_current_active_user)])
-def list_urls(db: Session = Depends(SessionLocal), current_user: User = Depends(get_current_user)):
-    try:
-        urls = list_all_urls(db, current_user)
-        return urls
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@app.get("/list_my_urls", dependencies=[Depends(JWTBearer())])
+def list_urls_for_user(current_user: User = Depends(get_current_user)):
+    return list_my_urls(current_user)
 
-@app.post("/change_password", dependencies=[Depends(get_current_active_user)])
-def change_password(old_password: str, new_password: str, db: Session = Depends(SessionLocal), current_user: User = Depends(get_current_user)):
-    if not verify_password(old_password, current_user.hashed_password):
-        raise HTTPException(status_code=400, detail="Old password is incorrect.")
-    current_user.hashed_password = get_password_hash(new_password)
-    db.commit()
-    return {"message": "Password changed successfully."}
+@app.post("/change_password", dependencies=[Depends(JWTBearer())])
+def change_user_password(current_user: User = Depends(get_current_user), new_password: str):
+    return change_password(current_user, new_password)
 
-@app.post("/update_url_limit", dependencies=[Depends(get_current_active_user)])
-def update_url_limit(username: str, new_limit: int, db: Session = Depends(SessionLocal), current_user: User = Depends(get_current_user)):
-    try:
-        updated_user = update_url_limit(db, username, new_limit, current_user)
-        return {"message": f"Limit updated successfully for '{username}'."}
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+@app.post("/create_url", dependencies=[Depends(JWTBearer())])
+def create_new_url(current_user: User = Depends(get_current_user), url_request: URLRequest):
+    return create_url(current_user, url_request)
+
+@app.post("/update_url_limit", dependencies=[Depends(JWTBearer())])
+def update_user_url_limit(username: str, new_limit: int):
+    return update_url_limit(username, new_limit)
 
 @app.get("/")
 def read_root():

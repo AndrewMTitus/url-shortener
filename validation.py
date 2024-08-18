@@ -1,4 +1,5 @@
 import re
+from pydantic import BaseModel, validator, ValidationError
 
 def is_valid_url(url: str) -> bool:
     regex = re.compile(
@@ -11,5 +12,22 @@ def is_valid_url(url: str) -> bool:
         r'(?::\d+)?' # optional port
         r'(?:/?|[/?]\S+)$', re.IGNORECASE)
     return re.match(regex, url) is not None
+
+class URLRequest(BaseModel):
+    url: str
+    custom_alias: str = None
+
+    @validator('url')
+    def validate_url(cls, v):
+        if not v.startswith("http://") and not v.startswith("https://"):
+            raise ValueError('URL must start with http:// or https://')
+        return v
+
+    @validator('custom_alias')
+    def validate_custom_alias(cls, v):
+        if v and not v.isalnum():
+            raise ValueError('Custom alias must be alphanumeric')
+        return v
+
 
 
