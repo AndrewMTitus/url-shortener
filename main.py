@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from fastapi import FastAPI, HTTPException, Depends, status
 from auth import create_access_token, JWTBearer, get_current_user, get_current_active_user
 from models import User, UserCreate
@@ -6,14 +7,31 @@ from url_management import (
 )
 from pydantic import BaseModel
 from fastapi.security import OAuth2PasswordRequestForm
+=======
+from fastapi import FastAPI, Depends
+from auth import JWTBearer
+from url_management import (
+    create_user,
+    list_urls,
+    list_my_urls,
+    change_password,
+    create_url,
+    update_url_limit,
+    CreateUserRequest,
+    ChangePasswordRequest,
+    URLRequest,
+    UpdateURLLimitRequest,
+)
+>>>>>>> origin/main
 import uvicorn
 
 app = FastAPI()
 
-class URLRequest(BaseModel):
-    url: str
-    custom_alias: str = None
+@app.post("/create_user", dependencies=[Depends(JWTBearer())])
+def create_user_endpoint(request: CreateUserRequest):
+    return create_user(request)
 
+<<<<<<< HEAD
 @app.post("/create_user")
 def create_user(user: UserCreate):
     return create_user_in_db(user)
@@ -65,6 +83,27 @@ def read_root():
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
+=======
+@app.get("/list_urls", dependencies=[Depends(JWTBearer())])
+def list_urls_endpoint():
+    return list_urls()
 
+@app.get("/list_my_urls", dependencies=[Depends(JWTBearer())])
+def list_my_urls_endpoint():
+    return list_my_urls()
 
+@app.post("/change_password", dependencies=[Depends(JWTBearer())])
+def change_password_endpoint(request: ChangePasswordRequest):
+    return change_password(request)
+>>>>>>> origin/main
 
+@app.post("/create_url", dependencies=[Depends(JWTBearer())])
+def create_url_endpoint(request: URLRequest):
+    return create_url(request)
+
+@app.post("/update_url_limit", dependencies=[Depends(JWTBearer())])
+def update_url_limit_endpoint(request: UpdateURLLimitRequest):
+    return update_url_limit(request)
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

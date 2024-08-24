@@ -68,3 +68,4 @@ def update_url_limit(username: str, new_limit: int):
         ExpressionAttributeValues={":new_limit": new_limit},
     )
     return {"message": f"Limit updated successfully for '{username}'."}
+
