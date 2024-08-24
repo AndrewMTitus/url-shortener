@@ -1,6 +1,6 @@
 import boto3
 from boto3.dynamodb.conditions import Key
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 dynamodb = boto3.resource('dynamodb')

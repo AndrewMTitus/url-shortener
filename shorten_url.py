@@ -8,8 +8,7 @@ table = get_dynamodb_table('url_shortener')
 
 def generate_short_url(url: str, custom_alias: str = None) -> str:
     """
-    Generate a short URL. If a custom alias is provided, use it; 
-otherwise, generate a hash.
+    Generate a short URL. If a custom alias is provided, use it; otherwise, generate a hash.
 
     Parameters:
     url (str): The original URL to be shortened.
@@ -19,8 +18,7 @@ otherwise, generate a hash.
     str: The generated short URL.
 
     Raises:
-    ValueError: If the URL is invalid or if the custom alias is not 
-alphanumeric.
+    ValueError: If the URL is invalid or if the custom alias is not alphanumeric.
     URLAlreadyExistsException: If the generated short URL already exists.
     ClientError: If there is an error with DynamoDB.
     """
@@ -77,8 +75,7 @@ def list_all_urls() -> list:
     List all short URLs and their corresponding original URLs.
 
     Returns:
-    list: A list of dictionaries containing short URLs and their original 
-URLs.
+    list: A list of dictionaries containing short URLs and their original URLs.
 
     Raises:
     ClientError: If there is an error with DynamoDB.
