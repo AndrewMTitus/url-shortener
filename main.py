@@ -39,7 +39,15 @@ def list_urls_for_user(current_user: User = Depends(get_current_user)):
     return list_my_urls(current_user)
 
 @app.post("/change_password", dependencies=[Depends(JWTBearer())])
-def change_user_password(current_user: User = Depends(get_current_user), new_password: str):
+def change_user_password(new_password: str, current_user: User = 
+Depends(get_current_user)):
+    # Logic to change the user's password
+    if current_user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not authenticated")
+
+    if not new_password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password cannot be empty")
+
     return change_password(current_user, new_password)
 
 @app.post("/create_url", dependencies=[Depends(JWTBearer())])
