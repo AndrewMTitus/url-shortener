@@ -1,5 +1,5 @@
 import boto3
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     SECRET_KEY: str = "4163979aafcfbef09c4feeba2a9e826ec0dc7ac52f4d819c54c3a2a478957dcb"

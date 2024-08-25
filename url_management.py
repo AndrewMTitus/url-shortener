@@ -2,11 +2,27 @@ from config import get_dynamodb_table, settings
 from auth import get_password_hash, verify_password
 from models import UserCreate, URLRequest
 from exceptions import URLLimitReachedException
+from fastapi import HTTPException
+from boto3.dynamodb.conditions import Key
+from shorten_url import generate_short_url
+from pydantic import BaseModel
 
 users_table = get_dynamodb_table(settings.USERS_TABLE_NAME)
 urls_table = get_dynamodb_table(settings.URLS_TABLE_NAME)
 
-def create_user_in_db(user: UserCreate):
+class UpdateURLLimitRequest(BaseModel):
+    username: str
+    new_limit: int
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+class CreateUserRequest(BaseModel):
+    username:str
+    password: str
+
+def create_user(user: UserCreate):
     hashed_password = get_password_hash(user.password)
     user_data = {
         "username": user.username,
@@ -39,6 +55,15 @@ def change_password(current_user, new_password: str):
     return {"message": "Password changed successfully."}
 
 def create_url(current_user, url_request: URLRequest):
+    # Check if the user has reached their URL limit
+    current_url_count = urls_table.query(
+        IndexName="username-index",
+        KeyConditionExpression=Key("username").eq(current_user.username)
+    ).get('Count', 0)
+
+    if current_url_count >= current_user.url_limit:
+        raise URLLimitReachedException("You have reached your URL limit.")
+    
     short_url = generate_short_url(url_request.url, url_request.custom_alias)
     url_data = {
         "short_url": short_url,
@@ -69,3 +94,6 @@ def update_url_limit(username: str, new_limit: int):
     )
     return {"message": f"Limit updated successfully for '{username}'."}
 
+def list_all_urls():
+    response = urls_table.scan()
+    return response.get('Items', [])

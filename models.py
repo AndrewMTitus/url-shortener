@@ -8,7 +8,15 @@ dynamodb = boto3.resource('dynamodb')
 users_table = dynamodb.Table('UsersTable')
 urls_table = dynamodb.Table('URLsTable')
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
 class URLCreate(BaseModel):
+    username: str
+    password: str
+
+class UserCreate(BaseModel):
     username: str
     password: str
     
@@ -24,12 +32,19 @@ class User(BaseModel):
 
     @staticmethod
     def get_user(username: str):
-        response = users_table.get_item(Key={'username': username})
-        return response.get('Item')
-
+        try:
+            response = users_table.get_item(Key={'username': username})
+            return response.get('Item')
+        except Exception as e:
+            print(f"Error fetching user {username}: {e}")
+            return None
+        
     @staticmethod
     def save_user(user: dict):
-        users_table.put_item(Item=user)
+        try:
+            users_table.put_item(Item=user)
+        except Exception as e:
+            print(f"Error saving user {user['username']}: {e}")
 
 class URL(BaseModel):
     short_url: str
