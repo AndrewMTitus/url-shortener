@@ -1,91 +1,45 @@
-import hashlib
-from botocore.exceptions import ClientError
-from config import get_dynamodb_table
+import random
+import string
+from config import get_dynamodb_table, settings
+from boto3.dynamodb.conditions import Key
 from exceptions import URLAlreadyExistsException, URLNotFoundException
-from validation import is_valid_url
 
-table = get_dynamodb_table('url_shortener')
+urls_table = get_dynamodb_table(settings.URLS_TABLE_NAME)
 
-def generate_short_url(url: str, custom_alias: str = None) -> str:
-    """
-    Generate a short URL. If a custom alias is provided, use it; 
-otherwise, generate a hash.
-
-    Parameters:
-    url (str): The original URL to be shortened.
-    custom_alias (str): An optional custom alias for the short URL.
-
-    Returns:
-    str: The generated short URL.
-
-    Raises:
-    ValueError: If the URL is invalid or if the custom alias is not 
-alphanumeric.
-    URLAlreadyExistsException: If the generated short URL already exists.
-    ClientError: If there is an error with DynamoDB.
-    """
-    if not is_valid_url(url):
-        raise ValueError("Invalid URL")
-
-    if custom_alias and not custom_alias.isalnum():
-        raise ValueError("Custom alias must be alphanumeric")
-
+def generate_short_url(original_url: str, custom_alias: str = None) -> str:
     if custom_alias:
+        if is_alias_taken(custom_alias):
+            raise URLAlreadyExistsException(f"The alias '{custom_alias}' is already in use.")
         short_url = custom_alias
     else:
-        short_url = hashlib.sha256(url.encode()).hexdigest()[:8]
+        short_url = generate_random_alias()
+        while is_alias_taken(short_url):
+            short_url = generate_random_alias()
 
-    try:
-        response = table.get_item(Key={'short_url': short_url})
-        if 'Item' in response:
-            raise URLAlreadyExistsException("Short URL already exists.")
-    except ClientError as e:
-        print(e.response['Error']['Message'])
-    
-    try:
-        table.put_item(Item={'short_url': short_url, 'original_url': url})
-    except ClientError as e:
-        print(e.response['Error']['Message'])
-    
+    save_url_to_db(short_url, original_url)
     return short_url
 
+def generate_random_alias(length: int = 6) -> str:
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+
+def is_alias_taken(alias: str) -> bool:
+    response = urls_table.get_item(Key={'short_url': alias})
+    return 'Item' in response
+
+def save_url_to_db(short_url: str, original_url: str) -> None:
+    url_data = {
+        "short_url": short_url,
+        "original_url": original_url
+    }
+    urls_table.put_item(Item=url_data)
+
 def get_original_url(short_url: str) -> str:
-    """
-    Retrieve the original URL given a short URL.
+    response = urls_table.get_item(Key={'short_url': short_url})
+    if 'Item' not in response:
+        raise URLNotFoundException(f"URL with alias '{short_url}' not found.")
+    return response['Item']['original_url']
 
-    Parameters:
-    short_url (str): The short URL to look up.
-
-    Returns:
-    str: The original URL.
-
-    Raises:
-    URLNotFoundException: If the short URL does not exist.
-    ClientError: If there is an error with DynamoDB.
-    """
-    try:
-        response = table.get_item(Key={'short_url': short_url})
-        if 'Item' in response:
-            return response['Item']['original_url']
-        else:
-            raise URLNotFoundException("Short URL does not exist")
-    except ClientError as e:
-        print(e.response['Error']['Message'])
-
-def list_all_urls() -> list:
-    """
-    List all short URLs and their corresponding original URLs.
-
-    Returns:
-    list: A list of dictionaries containing short URLs and their original 
-URLs.
-
-    Raises:
-    ClientError: If there is an error with DynamoDB.
-    """
-    try:
-        response = table.scan()
-        return response['Items']
-    except ClientError as e:
-        print(e.response['Error']['Message'])
+def list_all_urls():
+    response = urls_table.scan()
+    return response.get('Items', [])
 
