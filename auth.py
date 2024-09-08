@@ -67,12 +67,9 @@ def create_access_token(data: dict):
 def decode_access_token(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        if username is None:
-            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": "Could not validate credentials"}, headers={"WWW-Authenticate": "Bearer"})
-        return username
+        return payload
     except JWTError:
-        return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": "Could not validate credentials"}, headers={"WWW-Authenticate": "Bearer"})
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
 
 # Function to authenticate a user (verify username and password)
 def authenticate_user(username: str, password: str) -> User:
@@ -86,13 +83,24 @@ def authenticate_user(username: str, password: str) -> User:
 
 # Function to get the current user based on the JWT token
 def get_current_user(token: str = Depends(JWTBearer())) -> User:
-    username = decode_access_token(token)
-    response = users_table.get_item(Key={"username": username})
-    user = response.get("Item")
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return User(**user)
+    try:
+        # Decode the JWT token
+        payload = decode_access_token(token)
+        username: str = payload.get("sub")  # Extract the username from the token
 
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        # Query DynamoDB to get the user by username
+        response = users_table.get_item(Key={"username": username})
+        user = response.get("Item")
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return User(**user)  # Return the User object
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Could not validate token")
 
 
 
