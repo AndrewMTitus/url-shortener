@@ -1,12 +1,17 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from prometheus_client import Counter, generate_latest
+from fastapi import FastAPI, Depends, HTTPException, status, Response
 from auth import create_access_token, JWTBearer, get_current_user, authenticate_user
 from url_management import UpdateURLLimitRequest, CreateUserRequest, ChangePasswordRequest, create_user, list_urls, list_my_urls, change_password, create_url, update_url_limit
 from models import User, UserCreate, Token, URLRequest
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
+from prometheus_fastapi_instrumentator import Instrumentator
 import uvicorn
 
 app = FastAPI()
+
+# Initialize Prometheus Instrumentation
+Instrumentator().instrument(app).expose(app)
 
 @app.post("/create_user")
 def create_user_endpoint(request: CreateUserRequest):
@@ -25,7 +30,12 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.get("/list_urls", dependencies=[Depends(JWTBearer())])
-def list_all_urls_for_admin():
+def list_all_urls_for_admin(current_user: User = Depends(get_current_user)):
+    #Check if the current user is an admin
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="You don't have permission to access this resource")
+    
+    #if the current user is an admin, they can access the list of all URLs
     return list_urls()
 
 @app.get("/list_my_urls", dependencies=[Depends(JWTBearer())])
@@ -53,5 +63,22 @@ def update_user_url_limit(request: UpdateURLLimitRequest):
 def read_root():
     return {"message": "Welcome to my URL Shortener API"}
 
+
+# Define a Counter to track the number of HTTP requests
+REQUEST_COUNT = Counter("request_count", "Total number of HTTP requests")
+
+@app.middleware("http")
+async def track_requests(request, call_next):
+    # Increment the request count on each HTTP request
+    REQUEST_COUNT.inc()
+    response = await call_next(request)
+    return response
+
+@app.get("/metrics")
+async def get_metrics():
+    # Generate and return Prometheus metrics
+    return Response(generate_latest(), media_type="text/plain")
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+

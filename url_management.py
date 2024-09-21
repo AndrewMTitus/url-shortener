@@ -21,6 +21,7 @@ class ChangePasswordRequest(BaseModel):
 class CreateUserRequest(BaseModel):
     username: str
     password: str
+    is_admin: bool = False
 
 def create_user(user: UserCreate):
     hashed_password = get_password_hash(user.password)
@@ -28,7 +29,7 @@ def create_user(user: UserCreate):
         "username": user.username,
         "hashed_password": hashed_password,
         "url_limit": 20,
-        "is_admin": False
+        "is_admin": user.is_admin
     }
     users_table.put_item(Item=user_data)
     return {"message": f"User '{user.username}' created successfully."}
