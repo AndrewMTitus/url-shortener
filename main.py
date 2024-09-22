@@ -6,6 +6,7 @@ from models import User, UserCreate, Token, URLRequest
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from prometheus_fastapi_instrumentator import Instrumentator
+from config import settings, get_dynamodb_table
 import uvicorn
 
 app = FastAPI()
@@ -42,6 +43,16 @@ def list_all_urls_for_admin(current_user: User = Depends(get_current_user)):
 def list_urls_for_user(current_user: User = Depends(get_current_user)):
     return list_my_urls(current_user)
 
+@app.get("/lookup/{short_url}")
+def lookup_url(short_url: str):
+    # Query your database or URL storage to find the original URL
+    urls_table = get_dynamodb_table(settings.URLS_TABLE_NAME)
+    url_data = urls_table.get_item(Key={"short_url": short_url}).get("Item")
+    if url_data:
+        return {"original_url": url_data["original_url"]}
+    else:
+        raise HTTPException(status_code=404, detail="Short URL not found")
+    
 @app.post("/change_password", dependencies=[Depends(JWTBearer())])
 def change_user_password(request: ChangePasswordRequest, current_user: User = Depends(get_current_user)):
     return change_password(current_user, request.new_password)
